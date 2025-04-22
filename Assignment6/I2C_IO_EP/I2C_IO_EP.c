@@ -74,6 +74,7 @@ int main()
         }
 
         printf("Now the bool vaule of the GPIO 0 is %d\r\n",current_voltage);
+        printf("The bool vaule of the GPIO 0 is now %d\r\n",current_voltage);
         // Heartbeating led for debugging
         pico_set_led(!gpio_get(PICO_DEFAULT_LED_PIN));
         sleep_ms(100);
