@@ -13,4 +13,6 @@ The Assignment 5 is a project using SPI as the protocol to communicate 2 devices
 
 The Assignment 6 is a project using I2C to communicate with a I/O Expander, read from one specific input pin and control the logic level of another output pin using SPI to overwrite its logic value in register.
 
+The Assignment 7 is a project using I2C to control a oled screen to display the voltage information measured by an analog-to-digital converter.
+
 The content will be implemented as the course processes.
