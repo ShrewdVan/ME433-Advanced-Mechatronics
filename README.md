@@ -15,4 +15,6 @@ The Assignment 6 is a project using I2C to communicate with a I/O Expander, read
 
 The Assignment 7 is a project using I2C to control a oled screen to display the voltage information measured by an analog-to-digital converter.
 
+The Assignment 8 is a project using PIO to send specific signal to control the ws2812 addressable led series, and PWM periphrial to control a servo motor.
+
 The content will be implemented as the course processes.
