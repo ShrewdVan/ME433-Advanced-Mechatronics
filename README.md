@@ -17,4 +17,6 @@ The Assignment 7 is a project using I2C to control a oled screen to display the 
 
 The Assignment 8 is a project using PIO to send specific signal to control the ws2812 addressable led series, and PWM periphrial to control a servo motor.
 
+The Assignment 9 is a tiny project related to the dual core cooperation to finish three small tasks: read the adc, turn on and turn off the specific led.
+
 The content will be implemented as the course processes.
