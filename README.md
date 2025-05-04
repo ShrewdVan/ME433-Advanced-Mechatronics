@@ -19,6 +19,6 @@ The Assignment 8 is a project using PIO to send specific signal to control the w
 
 The Assignment 9 is a tiny project related to the dual core cooperation to finish three small tasks: read the adc, turn on and turn off the specific led.
 
-The Assignment 10 is to get fimiliar with the signal processing, low-pass filter for here. Use MAF, IIR and FIR to filter the data with a balence between smooth and noise elimination
+The Assignment 10 is to get fimiliar with the signal processing, low-pass filter for here. Use MAF, IIR and FIR to filter the data with a balence between smooth and noise elimination.
 
 The content will be implemented as the course processes.
