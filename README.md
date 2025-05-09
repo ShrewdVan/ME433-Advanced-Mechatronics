@@ -21,4 +21,6 @@ The Assignment 9 is a tiny project related to the dual core cooperation to finis
 
 The Assignment 10 is to get fimiliar with the signal processing, low-pass filter for here. Use MAF, IIR and FIR to filter the data with a balence between smooth and noise elimination.
 
+The Assignment 11 is to emulate the pico board to be a mouse. By sending the hid-mouse report to the pc, we can control the cursor by hitting the button, control its speed or acceleration, even change the mode of the cursor's movement.
+
 The content will be implemented as the course processes.
