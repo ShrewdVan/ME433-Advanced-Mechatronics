@@ -7,6 +7,7 @@
 #include "hardware/pwm.h"
 #include "ov7670.h"
 
+// =========================== Define Blocking ========================
 #define D0 0
 #define D1 1 
 #define D2 2
@@ -28,6 +29,7 @@
 #define ROWMAX 60
 #define COLMAX 80
 
+// =========================== Global Variable ========================
 uint8_t cameraData[ROWMAX * COLMAX * 2];
 
 static volatile uint8_t Sampling = 0;
@@ -37,7 +39,16 @@ static volatile uint8_t rowIndex = 0;
 static volatile uint8_t colIndex = 0;
 static volatile uint16_t DataIndex = 0;
 
+// =========================== Define Struct ========================
+typedef struct cameraImage{
+    uint8_t index;
+    uint8_t r[ROWMAX*COLMAX];
+    uint8_t g[ROWMAX*COLMAX];
+    uint8_t b[ROWMAX*COLMAX];
+} cameraImage_t;
+static volatile struct cameraImage picture;
 
+// =========================== Function Blocking ========================
 void PWM_init();
 void I2C_init();
 void camera_pin_init();
@@ -53,15 +64,7 @@ void PrintImage();
 void ConvertRGB();
 
 
-typedef struct cameraImage{
-    uint8_t index;
-    uint8_t r[ROWMAX*COLMAX];
-    uint8_t g[ROWMAX*COLMAX];
-    uint8_t b[ROWMAX*COLMAX];
-} cameraImage_t;
-static volatile struct cameraImage picture;
-
-
+// Main Function Starts here
 int main()
 {
     stdio_init_all();
@@ -77,24 +80,46 @@ int main()
     printf("Start initializing the camera\n");
     init_camera();
     printf("Finish initializing the camera\n");
+
+
     gpio_set_irq_enabled_with_callback(PCLK, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
     gpio_set_irq_enabled_with_callback(VS, GPIO_IRQ_EDGE_FALL, true, &gpio_callback);
     gpio_set_irq_enabled_with_callback(HS, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
     sleep_ms(1000);
 
+    // Inifinite Sampling loop
     while (true) {
+        // Wait here forever until the user asks to sample by sending something 
         char m[10];
         scanf("%s",m);
 
         StartSampling();
+        // Wait until the Sampling process is down
+    
+        // NOTE: The flag here CANNOT be the flag trigged by the VS, the code would pass the wating before the 
+        //       camera chaning the blocking flag, and then the flag changed by intterupt,
+        //       indicating the image sampling procedure starts............. which would cause the
+        //       senario that new data sent in while the code is processing the data............
+        //       In that case,the first image would to be pure black and huge chaos in the further result. 
+        //
+        //       Kinda Tricky and Vague bug here
+        //       You won't want to see that :) 
+        //
         while(WhetherSampling() == 1){}
 
+        // Convert the raw data
         ConvertRGB();
+        // Send to PC for python for the furthing processing
         PrintImage();
     }
 }
 
+
+// =========================== Function Detailed Blocking ========================
+
+// Pin initialization Function
 void camera_pin_init(){
+    // D0 to D7 represents the byte info of half pixel
     gpio_init(D0);
     gpio_set_dir(D0, 0);
     gpio_init(D1);
@@ -112,21 +137,31 @@ void camera_pin_init(){
     gpio_init(D7);
     gpio_set_dir(D7, 0);
 
+    // Reset pin used for the soft reset at the beginning
     gpio_init(RST);
     gpio_set_dir(RST, 1);
     gpio_put(RST, 1);
 
+    //************************ 
+    //   3 Key Pulse Signal
+    //************************
+
+    // PCLK is the Byte pulse, flash twice for 1 pixel, each one represents a byte info
     gpio_init(PCLK);
     gpio_set_dir(PCLK, 0);
+    // VS is the Frame Synch signal, it will temporailly be dragged low when a new image is starting and then back to high
     gpio_init(VS);
     gpio_set_dir(VS, 0);
+    // VS is the Row Synch signal, it will be dragged high during a row and back to low at the end of the row
     gpio_init(HS);
     gpio_set_dir(HS, 0);
 
 }
 
-void PWM_init(){
 
+void PWM_init(){
+    // Pico has a default clock with frequency of 150 MHz
+    // Set a Pwm to be 150/2/(3+1) = 18 MHz
     gpio_set_function(MCLK, GPIO_FUNC_PWM);
     uint slice_num = pwm_gpio_to_slice_num(MCLK);
     float div = 2;
@@ -145,9 +180,14 @@ void I2C_init(){
     gpio_set_function(SCL, GPIO_FUNC_I2C);
 }
 
+
+
 void gpio_callback(uint gpio, uint32_t events){
+    // If the trigged pin is VS, that's a frame Synch
     if (gpio == VS){
+        // Make sure the flag is "1", which changed after the user send the 1
         if(ImageRequest == 1){
+            // Initialize all the position and status
             rowIndex = 0;
             colIndex = 0;
             DataIndex = 0;
@@ -155,12 +195,17 @@ void gpio_callback(uint gpio, uint32_t events){
         }
     }
 
+    // If the trigged pin is HS, that's a row Synch
     else if (gpio == HS){
+        // If it's under the case the user asks for the sampling
         if (ImageRequest == 1){
+            // If it's still within the resolution range we want
             if (Sampling == 1){
+                // Reopen the flag if everything goes fine
                 row_allowed = 1;
                 rowIndex ++;
 
+                // If the Index has go beyond the range, shut down the sampling procedure
                 if (rowIndex == ROWMAX){
                     Sampling = 0;
                     ImageRequest = 0;
@@ -172,21 +217,32 @@ void gpio_callback(uint gpio, uint32_t events){
 
     } 
 
+    // If the trigged pin is VS, that's a byte Synch
     else if (gpio == PCLK) {
+        // If it's under the case the user asks for the sampling
         if (ImageRequest == 1){
+            // If it's still within the resolution range we want
             if (Sampling == 1){
+                // If both the colume is also within the range
                 if (row_allowed == 1 && colIndex < COLMAX*2){
+                    // Get all the voltage level on the pin
                     uint32_t d = gpio_get_all();
+                    // Get the first byte, because we wire the D0-D7 exactly the Gpio0- Gpio7
                     cameraData[DataIndex] = d & 0xFF;
+                    // Move on and offset the Index
                     DataIndex ++;
                     colIndex ++;
-
+                
+                    // If the PCLK trigged twice the MAXCOL value, that means it already hits the ending boundary of the row 
                     if (colIndex == COLMAX * 2){
+                        // Shut down the flag to close the sampling procedure for the rest of this row
                         row_allowed = 0;
                         colIndex = 0;
                     }
 
+                    // If the PCLK trigged twice the resolution value, that's the end of this image.
                     if (DataIndex == ROWMAX * COLMAX * 2){
+                        // Sampling down, shut down all the flags
                         Sampling = 0;
                         ImageRequest = 0;
                     }
@@ -321,6 +377,7 @@ uint8_t OV7670_read_register(uint8_t reg){
 void StartSampling(){
     ImageRequest = 1;
 }
+
 
 uint8_t WhetherSampling(){
     return ImageRequest;
