@@ -23,4 +23,8 @@ The Assignment 10 is to get fimiliar with the signal processing, low-pass filter
 
 The Assignment 11 is to emulate the pico board to be a mouse. By sending the hid-mouse report to the pc, we can control the cursor by hitting the button, control its speed or acceleration, even change the mode of the cursor's movement.
 
+The Assignment 12 is to get to know how a camera work, including row synch and frame synch with bunch of interrupt and flag control. Take the data from camera, send to pico, then send to PC and finally processed by python to see the image.
+
+The Assignment 13 is to play with the Imu unit. There are 2 parts of the assignment, (1) Display the board movement by drawing the line to the direction it tilts (2) Combine the Imu unit with the Mouse, make a special mouse which can be controlled by tilting the board with 2 buttons acting as the left and right click button.
+
 The content will be implemented as the course processes.
