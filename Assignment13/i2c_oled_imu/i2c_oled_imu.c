@@ -42,11 +42,13 @@
 #define GYRO_ZOUT_L  0x48
 #define WHO_AM_I     0x75
 
+// =========================== Global Variable ========================
 double accel_x = 0.0, accel_y = 0.0, accel_z = 0.0, gyro_x = 0.0, gyro_y = 0.0, gyro_z = 0.0, temp = 0.0;
 uint8_t buf[14];
 uint8_t ssd1306_buf[513];
 int imu_ready = 0;
 
+// =========================== Function Blocking ======================
 // Function used to send command to ssd1306
 void ssd1306_Send_Command(uint8_t);
 // Function using ssd1306_Send_Command to initialize the ssd1306
@@ -55,18 +57,26 @@ void ssd1306_Setup();
 void ssd1306_Clear();
 // Function used to display a pure string, ex. "Hello World"
 void Set_Pixel(bool, int, int);
-
+// Function used to draw a horizontal line between two columes at row 16 
 void Load_X_Line(int, int);
+// Function used to draw a vertical line between two rows at colume 64
 void Load_Y_Line(int, int);
+// Send the latest info from imu, send to oled and update the X-axis display buffer
 void X_accel_Update();
+// Send the latest info from imu, send to oled and update the Y-axis display buffer
 void Y_accel_Update();
-
+// Update the oled display with the info within the buffer
 void ssd1306_Update();
-
+// Initialize the Imu unit to start measuring
 void imu_init();
+// Check whether the communication between pico and Imu chip is established. ("1" for yes, and other as error)
 int i2c_check();
+// The interrupt callback function used to repond the interrupt pulse sent from Imu "Int" Pin
 void gpio_callback();
 
+
+
+// Main Function starts here
 int main()
 {
     // stdio and pico default led initialization
@@ -84,24 +94,24 @@ int main()
     sleep_ms(50);
     printf("Starting...\r\n");
 
+    // Imu and Oled initilalization 
     imu_init();
     ssd1306_Setup();
     ssd1306_Clear();
     sleep_ms(200);
 
-
+    // Check the chip Communication
     if (i2c_check() == 1){     
         printf("I2C conmunication works as expected\r\n");
     } else {
         printf("Failed to build communication with IMU\r\n");
     }
 
-
-
     gpio_set_irq_enabled_with_callback(INT_WATCH_PIN, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
 
     uint8_t reg;
 
+    // Inifite Asking loop, the flag is controlled by the ISR Function
     while (true) {
         if (imu_ready == 1){
             ssd1306_Clear();
@@ -115,6 +125,7 @@ int main()
                 printf("Error occurs during the I2C reading\r\n");
             }
 
+            // Assembly the two 8-bit info from I2C to a completed 16-bit info which we are interested in 
             accel_x = (double)((int16_t)(buf[0] << 8 | buf[1])) * 0.000061;
             accel_y = (double)((int16_t)(buf[2] << 8 | buf[3])) * 0.000061;
             accel_z = (double)((int16_t)(buf[4] << 8 | buf[5])) * 0.000061;
@@ -123,10 +134,13 @@ int main()
             gyro_y = (double)((int16_t)(buf[10] << 8 | buf[11])) * 0.007630;
             gyro_z = (double)((int16_t)(buf[12] << 8 | buf[13])) * 0.007630;
 
+            // Update the data to the ssd1306 buffer
             X_accel_Update();
             Y_accel_Update();
+            // Turns the info in buffer into display
             ssd1306_Update();
 
+            // Clear the flag to prepare the next generated pulse
             imu_ready = 0;
         }
         sleep_ms(5);
@@ -134,16 +148,9 @@ int main()
 }
 
 
-int pico_led_init(){
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    return PICO_OK;
-}   
 
-void pico_set_led(bool led_on){
-    gpio_put(PICO_DEFAULT_LED_PIN, led_on);
-}
 
+// =========================== Function Detailed Blocking ========================
 void imu_init(){
 
     uint8_t command[2]; 
@@ -153,7 +160,7 @@ void imu_init(){
     i2c_write_blocking(I2C_PORT, IMU_ADD, command, 2, false);
     sleep_ms(100);
     // Turn on the chip
-    command[0] = CONFIG;
+    command[0] = PWR_MGMT_1;
     command[1] = 0;
     i2c_write_blocking(I2C_PORT, IMU_ADD, command, 2, false);
     // Set the Gyro ranged +- 2000
@@ -182,6 +189,7 @@ void imu_init(){
 int i2c_check(){
     uint8_t buf[2];
     buf[0] = WHO_AM_I;
+    // The WHO_AM_I should be 0x68 if all the stuff goes fine
     int confirm = i2c_write_blocking(I2C_PORT, IMU_ADD, &buf[0], 1, true);
     if (confirm != 1){
         return 2;
@@ -197,9 +205,12 @@ int i2c_check(){
     }
 }
 
+
 void gpio_callback(){
+    // When reveived the pulse from the chip, turns the flag to "1"
     imu_ready = 1;
 }
+
 
 void ssd1306_Send_Command(uint8_t command){
     uint8_t command_buf[2];
@@ -212,8 +223,10 @@ void ssd1306_Send_Command(uint8_t command){
 }
 
 void ssd1306_Clear() {
-    memset(ssd1306_buf, 0, 513); // make every bit a 0, memset in string.h
-    ssd1306_buf[0] = 0x40; // first byte is part of command
+    // make every bit a 0, memset in string.h
+    memset(ssd1306_buf, 0, 513);
+    // first byte is part of command 
+    ssd1306_buf[0] = 0x40; 
     int confirm = i2c_write_blocking(I2C_PORT, OLED_ADD, ssd1306_buf, 513, false);
     if (confirm != 513){
         printf("Error occurs during Oled Clearance\r\n");
@@ -249,13 +262,16 @@ void ssd1306_Setup(){
 
 
 void Set_Pixel(bool status, int x, int y){
+    // The x,y augment should be in human-liked form
     int row_num = y - 1;
     int col_num = x - 1;
     int page = row_num / 8;
     int bit_pos = row_num % 8;
 
+    // Every row means 128 bytes behind, and use bit shift to precisely find the bit
     if (page >= 0 && page <= 4 && col_num >= 0 && col_num <= 127) {
         int Byte_Index = page * 128 + col_num + 1;
+        
         if (status) {
             ssd1306_buf[Byte_Index] |= (1 << bit_pos);    
         } else {
