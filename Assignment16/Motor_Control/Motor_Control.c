@@ -12,7 +12,7 @@
 
 // =========================== Global Variable ========================
 static int duty_cycle_A = 0, duty_cycle_B = 0, new_duty = 0;
-static char command, wheel_select;
+static char command, wheel_select; 
 
 // =========================== Function Blocking ========================
 
@@ -78,6 +78,7 @@ void pin_init_all(){
 
 }
 
+// Update the duty cycle and the phrase direction
 void wheel_update(){
             if (wheel_select == 'L'){
 
