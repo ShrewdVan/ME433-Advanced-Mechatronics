@@ -178,6 +178,9 @@ void I2C_init(){
     i2c_init(I2C_PORT, 100*1000);
     gpio_set_function(SDA, GPIO_FUNC_I2C);
     gpio_set_function(SCL, GPIO_FUNC_I2C);
+    // If you have already connected with another device which has a build-in default pull-up resistor, delete the following two lines
+    gpio_pull_up(I2C_SCL);
+    gpio_pull_up(I2C_SDA);
 }
 
 
